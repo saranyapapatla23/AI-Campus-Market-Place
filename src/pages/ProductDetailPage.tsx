@@ -114,16 +114,40 @@ export default function ProductDetailPage() {
   };
 
   const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      await navigator.share({
-        title: product?.title,
-        text: `Check out ${product?.title} on CampusKart AI for ₹${product?.price}`,
-        url,
-      });
-    } else {
-      await navigator.clipboard.writeText(url);
-      toast({ title: 'Link copied to clipboard' });
+    console.log('[ProductDetail] Share clicked');
+    if (!product) {
+      console.log('[ProductDetail] No product, returning');
+      return;
+    }
+
+    const url = `${window.location.origin}/product/${product.id}`;
+    console.log('[ProductDetail] Share URL:', url);
+
+    try {
+      if (navigator.share) {
+        console.log('[ProductDetail] Using navigator.share');
+        await navigator.share({
+          title: product.title,
+          text: `Check out ${product.title} on CampusKart AI for ₹${product.price}`,
+          url,
+        });
+        console.log('[ProductDetail] Share successful');
+      } else {
+        console.log('[ProductDetail] navigator.share not available, using clipboard');
+        await navigator.clipboard.writeText(url);
+        toast({ title: 'Link copied to clipboard' });
+        console.log('[ProductDetail] Clipboard write successful');
+      }
+    } catch (err) {
+      console.error('[ProductDetail] Share error:', err);
+      // If share was cancelled, that's fine
+      if (err instanceof Error && err.name !== 'AbortError') {
+        toast({
+          title: 'Could not share',
+          description: 'Please try copying the link manually',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

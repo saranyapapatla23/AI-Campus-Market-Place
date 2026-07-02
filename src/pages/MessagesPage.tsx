@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import type { Message, User as UserType } from '@/types';
 
 export default function MessagesPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [conversations, setConversations] = useState<
     (Message & { otherUser: UserType })[]
@@ -141,25 +143,72 @@ export default function MessagesPage() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !user || sending) return;
+    console.log('[Messages] Send clicked');
+    console.log('[Messages] user:', user?.id);
+    console.log('[Messages] selectedChat:', selectedChat);
+    console.log('[Messages] newMessage:', newMessage.trim());
+    console.log('[Messages] sending:', sending);
+
+    if (!newMessage.trim()) {
+      console.log('[Messages] Empty message, returning');
+      return;
+    }
+    if (!selectedChat) {
+      console.log('[Messages] No selected chat, returning');
+      return;
+    }
+    if (!user) {
+      console.log('[Messages] No user, returning');
+      return;
+    }
+    if (sending) {
+      console.log('[Messages] Already sending, returning');
+      return;
+    }
 
     setSending(true);
-    const { data } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: user.id,
-        receiver_id: selectedChat,
-        content: newMessage.trim(),
-      })
-      .select('*, sender:users(*), receiver:users(*)')
-      .single();
+    const messagePayload = {
+      sender_id: user.id,
+      receiver_id: selectedChat,
+      content: newMessage.trim(),
+    };
 
-    if (data) {
-      setMessages((prev) => [...prev, data]);
-      setNewMessage('');
-      loadConversations();
+    console.log('[Messages] Inserting message:', messagePayload);
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(messagePayload)
+        .select('*, sender:users(*), receiver:users(*)')
+        .single();
+
+      console.log('[Messages] Insert result - data:', data);
+      console.log('[Messages] Insert result - error:', error);
+
+      if (error) {
+        console.error('[Messages] FULL ERROR:', JSON.stringify(error, null, 2));
+        toast({
+          title: 'Failed to send message',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else if (data) {
+        console.log('[Messages] Message sent successfully');
+        setMessages((prev) => [...prev, data]);
+        setNewMessage('');
+        loadConversations();
+        toast({ title: 'Message sent' });
+      }
+    } catch (err) {
+      console.error('[Messages] Exception:', err);
+      toast({
+        title: 'Failed to send message',
+        description: 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
