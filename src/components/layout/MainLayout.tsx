@@ -1,5 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/ui/button';
@@ -43,8 +45,38 @@ const navItems = [
 
 export default function MainLayout() {
   const { user, signOut } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const location = useLocation();
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (user) {
+      const fetchUnreadCount = async () => {
+        try {
+          const { count, error } = await supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+
+          if (error) {
+            console.error('[MainLayout] Error fetching notification count:', error);
+          } else {
+            console.log('[MainLayout] Unread notification count:', count || 0);
+            setUnreadNotificationCount(count || 0);
+          }
+        } catch (err) {
+          console.error('[MainLayout] Exception fetching notification count:', err);
+          setUnreadNotificationCount(0);
+        }
+      };
+
+      fetchUnreadCount();
+    } else {
+      setUnreadNotificationCount(0);
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,7 +155,7 @@ export default function MainLayout() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'system')}
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
               className="hidden sm:flex"
             >
               {resolvedTheme === 'dark' ? (
@@ -138,9 +170,11 @@ export default function MainLayout() {
               <Link to="/notifications">
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
-                    3
-                  </span>
+                  {unreadNotificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
+                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                    </span>
+                  )}
                 </Button>
               </Link>
             )}
@@ -329,7 +363,7 @@ export default function MainLayout() {
 
 function MobileNav() {
   const { user, signOut } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
 
   return (
     <div className="flex flex-col h-full">
@@ -354,7 +388,7 @@ function MobileNav() {
 
         <div className="pt-4">
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'system')}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="flex items-center space-x-3 px-3 py-3 rounded-lg w-full text-left hover:bg-muted"
           >
             {resolvedTheme === 'dark' ? (

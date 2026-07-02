@@ -86,46 +86,64 @@ export default function MarketplacePage() {
   };
 
   const loadProducts = async () => {
+    console.log('[Marketplace] Loading products...');
     setLoading(true);
-    let query = supabase
-      .from('products')
-      .select('*, seller:users(*), category:categories(*)')
-      .eq('status', 'available');
+    try {
+      let query = supabase
+        .from('products')
+        .select('*, seller:users(*), category:categories(*)')
+        .eq('status', 'available');
 
-    if (selectedCategory) {
-      const categoryData = categories.find((c) => c.slug === selectedCategory);
-      if (categoryData) query = query.eq('category_id', categoryData.id);
-    }
-    if (selectedCondition) {
-      query = query.eq('condition', selectedCondition);
-    }
-    if (priceRange.min) {
-      query = query.gte('price', parseFloat(priceRange.min));
-    }
-    if (priceRange.max) {
-      query = query.lte('price', parseFloat(priceRange.max));
-    }
-    if (searchQuery) {
-      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-    }
+      if (selectedCategory) {
+        const categoryData = categories.find((c) => c.slug === selectedCategory);
+        if (categoryData) {
+          console.log('[Marketplace] Filtering by category:', categoryData.name);
+          query = query.eq('category_id', categoryData.id);
+        }
+      }
+      if (selectedCondition) {
+        console.log('[Marketplace] Filtering by condition:', selectedCondition);
+        query = query.eq('condition', selectedCondition);
+      }
+      if (priceRange.min) {
+        query = query.gte('price', parseFloat(priceRange.min));
+      }
+      if (priceRange.max) {
+        query = query.lte('price', parseFloat(priceRange.max));
+      }
+      if (searchQuery) {
+        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
 
-    switch (sortBy) {
-      case 'price_low':
-        query = query.order('price', { ascending: true });
-        break;
-      case 'price_high':
-        query = query.order('price', { ascending: false });
-        break;
-      case 'popular':
-        query = query.order('views', { ascending: false });
-        break;
-      default:
-        query = query.order('created_at', { ascending: false });
-    }
+      switch (sortBy) {
+        case 'price_low':
+          query = query.order('price', { ascending: true });
+          break;
+        case 'price_high':
+          query = query.order('price', { ascending: false });
+          break;
+        case 'popular':
+          query = query.order('views', { ascending: false });
+          break;
+        default:
+          query = query.order('created_at', { ascending: false });
+      }
 
-    const { data } = await query.limit(50);
-    setProducts(data || []);
-    setLoading(false);
+      const { data, error } = await query.limit(50);
+
+      if (error) {
+        console.error('[Marketplace] Error loading products:', error);
+      } else {
+        console.log('[Marketplace] Loaded products:', data?.length || 0);
+      }
+
+      setProducts(data || []);
+    } catch (err) {
+      console.error('[Marketplace] Exception loading products:', err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAiSearch = async () => {
