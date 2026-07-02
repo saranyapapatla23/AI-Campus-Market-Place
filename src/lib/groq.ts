@@ -153,7 +153,7 @@ export async function parseNaturalLanguageSearch(query: string): Promise<SearchF
       content: `You are a search query parser for a student marketplace called CampusKart AI.
 Parse natural language queries into structured filters.
 Always respond with valid JSON containing these keys (all optional): category, minPrice, maxPrice, condition, sortBy, query.
-Categories can be: Electronics, Books, Furniture, Appliances, Sports, Clothing, Hostel Essentials, Vehicles, Music & Arts, Others.
+Categories must be returned as slugs (lowercase, hyphenated): electronics, books, furniture, appliances, sports, clothing, hostel-essentials, vehicles, music-arts, others.
 Conditions can be: New, Like New, Good, Fair, Poor.
 sortBy can be: price_asc, price_desc, newest, popularity.
 query should be the remaining search terms.

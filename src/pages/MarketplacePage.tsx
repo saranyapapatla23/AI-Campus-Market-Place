@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { parseNaturalLanguageSearch } from '@/lib/groq';
+import { useToast } from '@/hooks/use-toast';
 import type { Product, Category } from '@/types';
 import ProductCard from '@/components/product/ProductCard';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 export default function MarketplacePage() {
+  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -76,12 +78,22 @@ export default function MarketplacePage() {
     loadCategories();
   }, []);
 
+  // Load products when categories are loaded and filters change
   useEffect(() => {
-    loadProducts();
-  }, [selectedCategory, selectedCondition, priceRange, sortBy]);
+    // Only load products after categories are loaded
+    if (categories.length > 0 || !selectedCategory) {
+      loadProducts();
+    }
+  }, [selectedCategory, selectedCondition, priceRange, sortBy, categories.length]);
 
   const loadCategories = async () => {
-    const { data } = await supabase.from('categories').select('*').order('name');
+    console.log('[Marketplace] Loading categories...');
+    const { data, error } = await supabase.from('categories').select('*').order('name');
+    if (error) {
+      console.error('[Marketplace] Error loading categories:', error);
+    } else {
+      console.log('[Marketplace] Loaded categories:', data?.length || 0);
+    }
     setCategories(data || []);
   };
 
@@ -147,12 +159,20 @@ export default function MarketplacePage() {
   };
 
   const handleAiSearch = async () => {
-    if (!searchQuery.trim()) return;
+    console.log('[Marketplace] AI Search clicked');
+    if (!searchQuery.trim()) {
+      console.log('[Marketplace] Empty search query, returning');
+      return;
+    }
 
     setAiSearchLoading(true);
     try {
+      console.log('[Marketplace] Calling parseNaturalLanguageSearch with:', searchQuery);
       const filters = await parseNaturalLanguageSearch(searchQuery);
+      console.log('[Marketplace] AI Search filters:', filters);
+
       if (filters.category) {
+        console.log('[Marketplace] Setting category to:', filters.category);
         setSearchParams((prev: URLSearchParams) => {
           prev.set('category', filters.category!);
           return prev;
@@ -160,20 +180,31 @@ export default function MarketplacePage() {
         setSelectedCategory(filters.category);
       }
       if (filters.minPrice) {
+        console.log('[Marketplace] Setting min price:', filters.minPrice);
         setPriceRange((prev) => ({ ...prev, min: filters.minPrice!.toString() }));
       }
       if (filters.maxPrice) {
+        console.log('[Marketplace] Setting max price:', filters.maxPrice);
         setPriceRange((prev) => ({ ...prev, max: filters.maxPrice!.toString() }));
       }
       if (filters.condition) {
+        console.log('[Marketplace] Setting condition:', filters.condition);
         setSelectedCondition(filters.condition);
       }
       if (filters.query) {
+        console.log('[Marketplace] Setting query:', filters.query);
         setSearchQuery(filters.query);
       }
+
+      toast({ title: 'Search filters applied' });
       loadProducts();
     } catch (error) {
-      console.error('AI Search error:', error);
+      console.error('[Marketplace] AI Search error:', error);
+      toast({
+        title: 'AI Search failed',
+        description: 'Please try again or use manual filters',
+        variant: 'destructive',
+      });
     } finally {
       setAiSearchLoading(false);
     }
