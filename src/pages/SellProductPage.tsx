@@ -40,6 +40,11 @@ export default function SellProductPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Debug log for user state
+  useEffect(() => {
+    console.log('[SellProduct] User state:', user ? { id: user.id, email: user.email } : 'null');
+  }, [user]);
+
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -137,33 +142,73 @@ export default function SellProductPage() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !title || !category || !price || !location) return;
+    console.log('Submit button clicked');
+    console.log('user:', user?.id);
+    console.log('title:', title);
+    console.log('category:', category);
+    console.log('condition:', condition);
+    console.log('price:', price);
+    console.log('location:', location);
 
+    if (!user || !title || !category || !price || !location) {
+      console.error('Validation failed - returning early');
+      console.log('!user:', !user);
+      console.log('!title:', !title);
+      console.log('!category:', !category);
+      console.log('!price:', !price);
+      console.log('!location:', !location);
+      alert('Validation failed! Check console for details.');
+      return;
+    }
+
+    console.log('Submitting product...');
+    alert('Submitting product...');
     setLoading(true);
-    try {
-      const { error } = await supabase.from('products').insert({
-        seller_id: user.id,
-        title,
-        description,
-        ai_summary: aiSummary,
-        category_id: category,
-        condition,
-        price: parseFloat(price),
-        original_price: originalPrice ? parseFloat(originalPrice) : null,
-        age_months: parseInt(age) || 0,
-        location,
-        negotiable,
-        images,
-        features,
-        tags,
-        status: 'available',
-      });
 
-      if (error) throw error;
+    const productData = {
+      seller_id: user.id,
+      title,
+      description: description || null,
+      ai_summary: aiSummary || null,
+      category_id: category,
+      condition,
+      price: parseFloat(price),
+      original_price: originalPrice ? parseFloat(originalPrice) : null,
+      age_months: parseInt(age) || 0,
+      location,
+      negotiable,
+      images: images || [],
+      features: features || [],
+      tags: tags || [],
+      status: 'available',
+    };
+
+    console.log('Product data to insert:', productData);
+
+    try {
+      console.log('Calling supabase.insert...');
+      const { data, error } = await supabase
+        .from('products')
+        .insert(productData)
+        .select();
+
+      console.log('Insert result - data:', data);
+      console.log('Insert result - error:', error);
+
+      if (error) {
+        console.error('FULL ERROR OBJECT:', JSON.stringify(error, null, 2));
+        alert('Insert error: ' + JSON.stringify(error));
+        throw error;
+      }
+
+      console.log('Insert successful, navigating to /my-listings');
+      alert('Product listed successfully!');
       navigate('/my-listings');
     } catch (error) {
       console.error('Submit error:', error);
+      alert('Submit error: ' + error);
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
@@ -171,6 +216,19 @@ export default function SellProductPage() {
   const canProceedStep1 = title && category && condition;
   const canProceedStep2 = price && location;
   const canSubmit = canProceedStep1 && canProceedStep2;
+
+  // Debug log for submit state
+  useEffect(() => {
+    console.log('[SellProduct] canSubmit:', canSubmit, {
+      canProceedStep1,
+      canProceedStep2,
+      title: !!title,
+      category: !!category,
+      condition: !!condition,
+      price: !!price,
+      location: !!location,
+    });
+  }, [canSubmit, canProceedStep1, canProceedStep2, title, category, condition, price, location]);
 
   return (
     <div className="min-h-screen pb-20 lg:pb-0 py-8">
