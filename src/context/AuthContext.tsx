@@ -28,18 +28,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_EMAIL_DOMAINS = [
-  'edu.in',
-  'ac.in',
-  'university.edu',
-  'college.edu',
-  '.edu',
-  '.ac.',
+const BLOCKED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'icloud.com',
 ];
 
 function isCollegeEmail(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase() || '';
-  return ALLOWED_EMAIL_DOMAINS.some((allowed) => domain.includes(allowed));
+  return !BLOCKED_EMAIL_DOMAINS.includes(domain);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -173,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!isCollegeEmail(email)) {
       console.log('STEP 0a: Invalid email domain:', email);
-      return { error: 'Please use a valid college email address (.edu, .ac.in, .edu.in)' };
+      return { error: 'Please use a college or institutional email address. Public email providers (Gmail, Yahoo, Hotmail, Outlook, iCloud) are not allowed.' };
     }
 
     setLoading(true);
